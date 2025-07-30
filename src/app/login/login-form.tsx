@@ -23,7 +23,7 @@ export function LoginForm() {
             id="username" 
             name="username" 
             type="text"
-            placeholder="ganesh" 
+            placeholder="adminusername" 
             required 
           />
         </div>
