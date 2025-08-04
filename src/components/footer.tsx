@@ -1,5 +1,4 @@
 import { Heart } from "lucide-react";
-import { Button } from "./ui/button";
 import Link from "next/link";
 
 export function Footer() {

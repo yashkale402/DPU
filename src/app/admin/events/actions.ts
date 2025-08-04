@@ -5,7 +5,6 @@ import { Event } from '@/lib/models';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { v2 as cloudinary } from 'cloudinary';
-import type { Event as EventType } from '@/lib/data';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -13,10 +12,20 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export async function createEvent(data: Omit<EventType, '_id' | 'id'>) {
+export async function createEvent(data: any) {
   try {
     await connectToDb();
-    const newEvent = new Event(data);
+    
+    // Convert form data to database format
+    const eventData = {
+      ...data,
+      date: typeof data.date === 'string' ? data.date : data.date.toISOString(),
+      images: Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object' 
+        ? data.images.map((img: any) => img.url) 
+        : data.images
+    };
+    
+    const newEvent = new Event(eventData);
     await newEvent.save();
   } catch (error) {
     console.error(error);
@@ -28,10 +37,20 @@ export async function createEvent(data: Omit<EventType, '_id' | 'id'>) {
   redirect('/admin');
 }
 
-export async function updateEvent(id: string, data: Partial<EventType>) {
+export async function updateEvent(id: string, data: any) {
     try {
         await connectToDb();
-        await Event.findByIdAndUpdate(id, data);
+        
+        // Convert form data to database format
+        const eventData = {
+          ...data,
+          date: typeof data.date === 'string' ? data.date : data.date?.toISOString(),
+          images: Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object' 
+            ? data.images.map((img: any) => img.url) 
+            : data.images
+        };
+        
+        await Event.findByIdAndUpdate(id, eventData);
     } catch (error) {
         console.error(error);
         throw new Error('Failed to update event');

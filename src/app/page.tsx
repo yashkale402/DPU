@@ -16,7 +16,7 @@ export default function Home() {
              </h1>
           </div>
           <p className="mt-6 text-lg leading-8 text-foreground/80 max-w-2xl mx-auto">
-            Your central hub for college events and student achievements. Discover what's happening and celebrate the brilliant work of your peers.
+            Your central hub for college events and student achievements. Discover what&apos;s happening and celebrate the brilliant work of your peers.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-4">
             <Button asChild size="lg">

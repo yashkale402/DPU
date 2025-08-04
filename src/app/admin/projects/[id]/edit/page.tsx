@@ -1,7 +1,6 @@
 import { getProjectById, updateProject } from '@/app/admin/projects/actions';
 import { ProjectForm } from '@/components/admin/project-form';
 import { notFound } from 'next/navigation';
-import type { Project } from '@/lib/data';
 
 export default async function EditProjectPage({ params }: { params: { id: string } }) {
   const projectId = params.id;
@@ -11,7 +10,7 @@ export default async function EditProjectPage({ params }: { params: { id: string
     notFound();
   }
 
-  const handleUpdateProject = async (data: Project) => {
+  const handleUpdateProject = async (data: any) => {
     'use server';
     return updateProject(projectId, data);
   };

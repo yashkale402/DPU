@@ -23,7 +23,7 @@ function extractYearFromAcademicYear(academicYear: string): number {
 }
 
 // Validation function for project data
-function validateProjectData(data: any): { isValid: boolean; errors: string[] } {
+function validateProjectData(data: Record<string, unknown>): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
   
   if (!data.title || typeof data.title !== 'string' || data.title.trim() === '') {
@@ -77,30 +77,42 @@ function validateProjectData(data: any): { isValid: boolean; errors: string[] } 
   };
 }
 
-export async function createProject(data: ProjectType) {
+export async function createProject(data: any) {
   try {
     console.log('Received project data:', data);
     
+    // Convert form data to database format
+    const projectData = {
+      ...data,
+      students: Array.isArray(data.students) && data.students.length > 0 && typeof data.students[0] === 'object'
+        ? data.students.map((s: any) => s.name)
+        : data.students,
+      images: Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object'
+        ? data.images.map((img: any) => img.url)
+        : data.images,
+      date: typeof data.date === 'string' ? data.date : data.date?.toISOString?.() || new Date().toISOString()
+    };
+    
     // Validate data before processing
-    const validation = validateProjectData(data);
+    const validation = validateProjectData(projectData as Record<string, unknown>);
     if (!validation.isValid) {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
     
     // Ensure data is properly formatted and map academicYear to year for database
     const processedData = {
-      ...data,
-      title: data.title?.trim(),
-      description: data.description?.trim(),
-      category: data.category?.trim(),
-      class: data.class?.trim(),
-      academicYear: data.academicYear?.trim(),
-      year: extractYearFromAcademicYear(data.academicYear), // Extract year for database
-      date: data.date?.trim(),
-      students: data.students || [],
-      images: data.images || [],
-      otherLinks: data.otherLinks || [],
-      liveLink: data.liveLink?.trim() || '',
+      ...projectData,
+      title: projectData.title?.trim(),
+      description: projectData.description?.trim(),
+      category: projectData.category?.trim(),
+      class: projectData.class?.trim(),
+      academicYear: projectData.academicYear?.trim(),
+      year: extractYearFromAcademicYear(projectData.academicYear), // Extract year for database
+      date: projectData.date?.trim(),
+      students: projectData.students || [],
+      images: projectData.images || [],
+      otherLinks: projectData.otherLinks || [],
+      liveLink: projectData.liveLink?.trim() || '',
     };
     
     console.log('Processed project data:', processedData);
@@ -111,25 +123,31 @@ export async function createProject(data: ProjectType) {
     
     console.log('Project created successfully:', savedProject._id);
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create project error:', error);
     
     // Handle different types of errors
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map((err: any) => err.message);
-      throw new Error(`Database validation failed: ${validationErrors.join(', ')}`);
-    }
-    
-    if (error.name === 'MongoError' || error.name === 'MongoServerError') {
-      throw new Error('Database connection error. Please try again.');
+    if (error && typeof error === 'object' && 'name' in error) {
+      if ((error as any).name === 'ValidationError') {
+        const validationErrors = Object.values((error as any).errors).map((err: any) => err.message);
+        throw new Error(`Database validation failed: ${validationErrors.join(', ')}`);
+      }
+      
+      if ((error as any).name === 'MongoError' || (error as any).name === 'MongoServerError') {
+        throw new Error('Database connection error. Please try again.');
+      }
     }
     
     // If it's already a custom error message, throw it as is
-    if (error.message.includes('Validation failed:')) {
+    if (error && typeof error === 'object' && 'message' in error && (error as any).message.includes('Validation failed:')) {
       throw error;
     }
     
-    throw new Error(`Failed to create project: ${error.message}`);
+    if (error && typeof error === 'object' && 'message' in error) {
+      throw new Error(`Failed to create project: ${(error as any).message}`);
+    }
+    
+    throw new Error('Failed to create project: Unknown error');
   }
 
   // Revalidate paths and redirect
@@ -153,10 +171,10 @@ export async function getProjectById(id: string) {
     }
     
     return JSON.parse(JSON.stringify(project));
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to fetch project:", error);
     
-    if (error.name === 'CastError') {
+    if (error && typeof error === 'object' && 'name' in error && (error as any).name === 'CastError') {
       console.error("Invalid project ID format:", id);
       return null;
     }
@@ -193,7 +211,7 @@ export async function updateProject(id: string, data: Partial<ProjectType>) {
     }
     
     // Process the data
-    const processedData: any = {};
+    const processedData: Record<string, unknown> = {};
     Object.keys(data).forEach(key => {
       if (data[key as keyof ProjectType] !== undefined) {
         if (key === 'academicYear' || key === 'title' || key === 'description' || key === 'category' || key === 'class' || key === 'date' || key === 'liveLink') {
@@ -217,25 +235,27 @@ export async function updateProject(id: string, data: Partial<ProjectType>) {
     
     console.log('Project updated successfully:', updatedProject._id);
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update project error:', error);
     
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map((err: any) => err.message);
-      throw new Error(`Database validation failed: ${validationErrors.join(', ')}`);
+    if (error && typeof error === 'object' && 'name' in error) {
+      if ((error as any).name === 'ValidationError') {
+        const validationErrors = Object.values((error as any).errors).map((err: any) => err.message);
+        throw new Error(`Database validation failed: ${validationErrors.join(', ')}`);
+      }
+      
+      if ((error as any).name === 'CastError') {
+        throw new Error('Invalid project ID format');
+      }
     }
     
-    if (error.name === 'CastError') {
-      throw new Error('Invalid project ID format');
-    }
-    
-    if (error.message.includes('Validation failed:')) {
+    if (error && typeof error === 'object' && 'message' in error && (error as any).message.includes('Validation failed:')) {
       throw error;
     }
     
-    throw new Error(`Failed to update project: ${error.message}`);
+    throw new Error(`Failed to update project: ${(error as any).message || 'Unknown error'}`);
   }
-
+  
   revalidatePath('/admin');
   revalidatePath('/student-corner');
   revalidatePath(`/admin/projects/${id}/edit`);
@@ -263,14 +283,14 @@ export async function deleteProject(projectId: string) {
     revalidatePath('/student-corner');
     return { success: true, message: 'Project deleted successfully' };
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete project error:', error);
     
-    if (error.name === 'CastError') {
+    if (error && typeof error === 'object' && 'name' in error && (error as any).name === 'CastError') {
       return { success: false, message: 'Invalid project ID format' };
     }
     
-    return { success: false, message: `Failed to delete project: ${error.message}` };
+    return { success: false, message: `Failed to delete project: ${error && typeof error === 'object' && 'message' in error ? (error as any).message : 'Unknown error'}` };
   }
 }
 

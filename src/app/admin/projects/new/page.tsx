@@ -1,13 +1,12 @@
 'use client';
 import { ProjectForm } from "@/components/admin/project-form";
 import { useToast } from "@/hooks/use-toast";
-import type { Project } from "@/lib/data";
 import { createProject } from "../actions";
 
 export default function NewProjectPage() {
     const { toast } = useToast();
 
-    const handleFormSubmit = async (data: Project) => {
+    const handleFormSubmit = async (data: any) => {
          try {
             await createProject(data);
             toast({
@@ -15,6 +14,7 @@ export default function NewProjectPage() {
                 description: "The new project has been successfully created.",
             });
         } catch (error) {
+            console.error('Failed to create project:', error);
              toast({
                 title: "Error",
                 description: "Failed to create project. Please try again.",

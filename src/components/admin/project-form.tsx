@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -49,7 +48,7 @@ type ProjectFormValues = z.infer<typeof projectFormSchema>
 
 interface ProjectFormProps {
   project?: Project | null;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: ProjectFormValues) => Promise<void>;
   onCancelPath: string;
 }
 
@@ -127,6 +126,7 @@ export function ProjectForm({ project, onSubmit, onCancelPath }: ProjectFormProp
           }
            toast({ title: 'Success', description: 'Images uploaded successfully.'})
         } catch (error) {
+          console.error('Image upload failed:', error);
            toast({ title: 'Error', description: 'Image upload failed.', variant: 'destructive'})
         }
       });
@@ -137,9 +137,9 @@ export function ProjectForm({ project, onSubmit, onCancelPath }: ProjectFormProp
     startTransition(async () => {
         const payload = {
             ...data,
-            students: data.students.map(s => s.name),
-            images: data.images.map(img => img.url),
-            date: format(data.date || new Date(), "MMMM d, yyyy"),
+            students: data.students,
+            images: data.images,
+            date: data.date,
         }
         await onSubmit(payload);
     });

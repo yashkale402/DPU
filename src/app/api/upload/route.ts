@@ -10,10 +10,14 @@ cloudinary.config({
 async function uploadImage(file: File): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
-    const result: any = await new Promise((resolve, reject) => {
+    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
       cloudinary.uploader.upload_stream({folder: "campus-connect"}, (error, result) => {
         if (error) {
           reject(error);
+          return;
+        }
+        if (!result) {
+          reject(new Error('Upload failed'));
           return;
         }
         resolve(result);

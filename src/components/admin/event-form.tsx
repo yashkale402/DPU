@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -36,7 +35,7 @@ const eventFormSchema = z.object({
   date: z.date({ required_error: "A date is required." }),
   description: z.string().max(10000, "Description must be 10,000 characters or less.").min(10, "Description must be at least 10 characters."),
   type: z.string({required_error: "Please select an event type."}),
-  year: z.enum(["All", "Freshman", "Sophomore", "Junior", "Senior"]),
+  year: z.string(),
   academicYear: z.string({required_error: "Please select an academic year."}),
   images: z.array(z.object({ url: z.string().url("Must be a valid URL or data URI.") })).min(1, "At least one image is required."),
   links: z.array(z.object({ title: z.string().min(1, "Link title cannot be empty."), url: z.string().url("Must be a valid URL.") })).optional(),
@@ -46,7 +45,7 @@ type EventFormValues = z.infer<typeof eventFormSchema>
 
 interface EventFormProps {
   event?: Event;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: EventFormValues) => Promise<void>;
   onCancelPath: string;
 }
 
@@ -116,6 +115,7 @@ export function EventForm({ event, onSubmit, onCancelPath }: EventFormProps) {
           }
           toast({ title: 'Success', description: 'Images uploaded successfully.'})
         } catch (error) {
+          console.error('Image upload failed:', error);
           toast({ title: 'Error', description: 'Image upload failed.', variant: 'destructive'})
         }
       });
@@ -127,8 +127,8 @@ export function EventForm({ event, onSubmit, onCancelPath }: EventFormProps) {
     startTransition(async () => {
       const payload = {
         ...data,
-        date: format(data.date, "MMMM d, yyyy"),
-        images: data.images.map(img => img.url),
+        date: data.date,
+        images: data.images,
       };
       await onSubmit(payload);
     })

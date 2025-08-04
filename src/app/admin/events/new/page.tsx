@@ -1,14 +1,13 @@
 'use client';
 import { EventForm } from "@/components/admin/event-form";
 import { useToast } from "@/hooks/use-toast";
-import type { Event } from "@/lib/data";
 import { createEvent } from "../actions";
 
 
 export default function NewEventPage() {
     const { toast } = useToast();
 
-    const handleFormSubmit = async (data: Event) => {
+    const handleFormSubmit = async (data: any) => {
         try {
             await createEvent(data);
             toast({
@@ -16,6 +15,7 @@ export default function NewEventPage() {
                 description: "The new event has been successfully created.",
             });
         } catch (error) {
+            console.error('Failed to create event:', error);
              toast({
                 title: "Error",
                 description: "Failed to create event. Please try again.",

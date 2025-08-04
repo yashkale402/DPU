@@ -80,6 +80,7 @@ export function AcademicYearTable({ initialAcademicYears }: AcademicYearTablePro
             description: "The new academic year has been successfully added.",
         });
       } catch (error) {
+        console.error('Failed to add academic year:', error);
         toast({ title: "Error", description: "Failed to add academic year.", variant: "destructive" });
       }
     });

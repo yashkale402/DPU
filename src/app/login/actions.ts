@@ -14,7 +14,7 @@ export async function authenticate(
   const adminPassword = process.env.ADMIN_PASSWORD;
 
   if (username === adminUsername && password === adminPassword) {
-    cookies().set('session', 'true', { httpOnly: true, path: '/' });
+    (await cookies()).set('session', 'true', { httpOnly: true, path: '/' });
     redirect('/admin');
   } else {
     return 'Invalid username or password.';

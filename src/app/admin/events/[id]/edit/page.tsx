@@ -11,7 +11,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
     notFound();
   }
 
-  const handleUpdateEvent = async (data: any) => {
+  const handleUpdateEvent = async (data: Record<string, unknown>) => {
     'use server';
     return updateEvent(eventId, data);
   };
