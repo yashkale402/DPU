@@ -100,37 +100,106 @@ export function EventForm({ event, onSubmit, onCancelPath }: EventFormProps) {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      const formData = new FormData();
-      for (const file of files) {
-          formData.append('files', file);
+    if (!files || files.length === 0) return;
+
+    // Check file types and sizes
+    const validFiles = Array.from(files).filter(file => {
+      if (!file.type.startsWith('image/')) {
+        toast({ 
+          title: 'Invalid File', 
+          description: `${file.name} is not an image file.`, 
+          variant: 'destructive' 
+        });
+        return false;
       }
-      
-      startTransition(async () => {
-        try {
-          const res = await fetch('/api/upload', { method: 'POST', body: formData });
-          const data = await res.json();
-          if (data.urls) {
-            data.urls.forEach((url: string) => appendImage({ url }));
-          }
-          toast({ title: 'Success', description: 'Images uploaded successfully.'})
-        } catch (error) {
-          console.error('Image upload failed:', error);
-          toast({ title: 'Error', description: 'Image upload failed.', variant: 'destructive'})
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast({ 
+          title: 'File Too Large', 
+          description: `${file.name} is larger than 10MB.`, 
+          variant: 'destructive' 
+        });
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    const formData = new FormData();
+    validFiles.forEach(file => formData.append('files', file));
+    
+    startTransition(async () => {
+      try {
+        const res = await fetch('/api/upload', { 
+          method: 'POST', 
+          body: formData 
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Upload failed');
         }
-      });
+        
+        const data = await res.json();
+        if (data.urls && data.urls.length > 0) {
+          data.urls.forEach((url: string) => appendImage({ url }));
+          toast({ 
+            title: 'Success', 
+            description: `${data.urls.length} image(s) uploaded successfully.`
+          });
+        } else {
+          throw new Error('No URLs returned from upload');
+        }
+      } catch (error) {
+        console.error('Image upload failed:', error);
+        toast({ 
+          title: 'Upload Error', 
+          description: error instanceof Error ? error.message : 'Image upload failed. Please try again.', 
+          variant: 'destructive'
+        });
+      }
+    });
+
+    // Clear the input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
 
   const handleSubmit = (data: EventFormValues) => {
     startTransition(async () => {
-      const payload = {
-        ...data,
-        date: data.date,
-        images: data.images,
-      };
-      await onSubmit(payload);
+      try {
+        // Validate that at least one image is provided
+        if (!data.images || data.images.length === 0 || data.images.every(img => !img.url || img.url.trim() === '')) {
+          toast({
+            title: "Validation Error",
+            description: "At least one image is required for the event.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Filter out empty image URLs
+        const validImages = data.images.filter(img => img.url && img.url.trim() !== '');
+        
+        const payload = {
+          ...data,
+          date: data.date,
+          images: validImages,
+          links: data.links?.filter(link => link.title && link.url) || []
+        };
+
+        console.log('Submitting event data:', payload);
+        await onSubmit(payload);
+      } catch (error) {
+        console.error('Form submission error:', error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to submit form. Please try again.",
+          variant: "destructive"
+        });
+      }
     })
   };
 

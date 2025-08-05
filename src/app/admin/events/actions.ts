@@ -14,22 +14,54 @@ cloudinary.config({
 
 export async function createEvent(data: any) {
   try {
+    // Check if MongoDB URI is configured
+    if (!process.env.MONGODB_URI) {
+      console.error('MONGODB_URI environment variable is not set');
+      throw new Error('Database configuration missing. Please check environment variables.');
+    }
+
     await connectToDb();
     
+    // Validate required fields
+    if (!data.title || !data.date || !data.description || !data.type || !data.academicYear) {
+      throw new Error('Missing required fields. Please fill in all required information.');
+    }
+
     // Convert form data to database format
     const eventData = {
       ...data,
       date: typeof data.date === 'string' ? data.date : data.date.toISOString(),
       images: Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object' 
-        ? data.images.map((img: any) => img.url) 
-        : data.images
+        ? data.images.map((img: any) => img.url).filter(url => url && url.trim() !== '') 
+        : (data.images || []).filter((url: string) => url && url.trim() !== '')
     };
+
+    // Ensure at least one image is provided
+    if (!eventData.images || eventData.images.length === 0) {
+      throw new Error('At least one image is required for the event.');
+    }
     
+    console.log('Creating event with data:', eventData);
     const newEvent = new Event(eventData);
     await newEvent.save();
+    console.log('Event created successfully:', newEvent._id);
   } catch (error) {
-    console.error(error);
-    throw new Error('Failed to create event');
+    console.error('Error creating event:', error);
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('validation failed')) {
+        throw new Error('Validation failed. Please check all required fields are properly filled.');
+      } else if (error.message.includes('duplicate key')) {
+        throw new Error('An event with similar details already exists.');
+      } else if (error.message.includes('connection')) {
+        throw new Error('Database connection failed. Please try again later.');
+      } else {
+        throw error;
+      }
+    }
+    
+    throw new Error('Failed to create event. Please try again.');
   }
 
   revalidatePath('/admin');
