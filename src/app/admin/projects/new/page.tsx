@@ -1,4 +1,5 @@
 'use client';
+import type { ProjectFormValues } from "@/components/admin/project-form";
 import { ProjectForm } from "@/components/admin/project-form";
 import { useToast } from "@/hooks/use-toast";
 import { createProject } from "../actions";
@@ -6,7 +7,7 @@ import { createProject } from "../actions";
 export default function NewProjectPage() {
     const { toast } = useToast();
 
-    const handleFormSubmit = async (data: any) => {
+    const handleFormSubmit = async (data: ProjectFormValues) => {
          try {
             await createProject(data);
             toast({

@@ -44,7 +44,7 @@ const projectFormSchema = z.object({
 });
 
 
-type ProjectFormValues = z.infer<typeof projectFormSchema>
+export type ProjectFormValues = z.infer<typeof projectFormSchema>
 
 interface ProjectFormProps {
   project?: Project | null;

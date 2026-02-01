@@ -77,20 +77,33 @@ function validateProjectData(data: Record<string, unknown>): { isValid: boolean;
   };
 }
 
-export async function createProject(data: any) {
+interface FormStudent {
+  name?: string;
+}
+
+interface FormImage {
+  url?: string;
+}
+
+export type CreateProjectInput = ProjectType | (Omit<ProjectType, 'students' | 'images' | 'date'> & { students?: (FormStudent | string)[]; images?: (FormImage | string)[]; date?: string | Date });
+
+export async function createProject(data: CreateProjectInput) {
   try {
     console.log('Received project data:', data);
     
+    const dateValue = data.date;
+    const dateStr = typeof dateValue === 'string' ? dateValue : (dateValue instanceof Date ? dateValue.toISOString() : new Date().toISOString());
+
     // Convert form data to database format
     const projectData = {
       ...data,
       students: Array.isArray(data.students) && data.students.length > 0 && typeof data.students[0] === 'object'
-        ? data.students.map((s: any) => s.name)
-        : data.students,
+        ? (data.students as FormStudent[]).map((s) => s.name ?? '')
+        : (data.students ?? []) as string[],
       images: Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object'
-        ? data.images.map((img: any) => img.url)
-        : data.images,
-      date: typeof data.date === 'string' ? data.date : data.date?.toISOString?.() || new Date().toISOString()
+        ? (data.images as FormImage[]).map((img) => img.url ?? '')
+        : (data.images ?? []) as string[],
+      date: dateStr,
     };
     
     // Validate data before processing
@@ -126,25 +139,24 @@ export async function createProject(data: any) {
   } catch (error: unknown) {
     console.error('Create project error:', error);
     
-    // Handle different types of errors
+    const err = error as Error & { name?: string; errors?: Record<string, { message?: string }> };
     if (error && typeof error === 'object' && 'name' in error) {
-      if ((error as any).name === 'ValidationError') {
-        const validationErrors = Object.values((error as any).errors).map((err: any) => err.message);
+      if (err.name === 'ValidationError' && err.errors) {
+        const validationErrors = Object.values(err.errors).map((e) => e?.message ?? '');
         throw new Error(`Database validation failed: ${validationErrors.join(', ')}`);
       }
       
-      if ((error as any).name === 'MongoError' || (error as any).name === 'MongoServerError') {
+      if (err.name === 'MongoError' || err.name === 'MongoServerError') {
         throw new Error('Database connection error. Please try again.');
       }
     }
     
-    // If it's already a custom error message, throw it as is
-    if (error && typeof error === 'object' && 'message' in error && (error as any).message.includes('Validation failed:')) {
+    if (error && typeof error === 'object' && 'message' in error && typeof err.message === 'string' && err.message.includes('Validation failed:')) {
       throw error;
     }
     
-    if (error && typeof error === 'object' && 'message' in error) {
-      throw new Error(`Failed to create project: ${(error as any).message}`);
+    if (error && typeof error === 'object' && 'message' in error && typeof err.message === 'string') {
+      throw new Error(`Failed to create project: ${err.message}`);
     }
     
     throw new Error('Failed to create project: Unknown error');
@@ -174,7 +186,7 @@ export async function getProjectById(id: string) {
   } catch (error: unknown) {
     console.error("Failed to fetch project:", error);
     
-    if (error && typeof error === 'object' && 'name' in error && (error as any).name === 'CastError') {
+    if (error && typeof error === 'object' && 'name' in error && (error as Error & { name: string }).name === 'CastError') {
       console.error("Invalid project ID format:", id);
       return null;
     }
@@ -183,7 +195,9 @@ export async function getProjectById(id: string) {
   }
 }
 
-export async function updateProject(id: string, data: Partial<ProjectType>) {
+export type UpdateProjectInput = Partial<ProjectType> | (Partial<Omit<ProjectType, 'students' | 'images' | 'date'>> & { students?: (FormStudent | string)[]; images?: (FormImage | string)[]; date?: string | Date });
+
+export async function updateProject(id: string, data: UpdateProjectInput) {
   try {
     if (!id || typeof id !== 'string') {
       throw new Error('Invalid project ID');
@@ -191,18 +205,30 @@ export async function updateProject(id: string, data: Partial<ProjectType>) {
     
     console.log('Updating project:', id, 'with data:', data);
     
+    // Normalize form data to DB shape
+    const normalized = {
+      ...data,
+      students: Array.isArray(data.students) && data.students.length > 0 && typeof data.students[0] === 'object'
+        ? (data.students as FormStudent[]).map((s) => s.name ?? '')
+        : data.students,
+      images: Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object'
+        ? (data.images as FormImage[]).map((img) => img.url ?? '')
+        : data.images,
+      date: data.date instanceof Date ? data.date.toISOString() : data.date,
+    };
+    
     // Validate partial data
     const errors: string[] = [];
     
-    if (data.title !== undefined && (!data.title || data.title.trim() === '')) {
+    if (normalized.title !== undefined && (!normalized.title || normalized.title.trim() === '')) {
       errors.push('Title cannot be empty');
     }
     
-    if (data.description !== undefined && (!data.description || data.description.trim() === '')) {
+    if (normalized.description !== undefined && (!normalized.description || normalized.description.trim() === '')) {
       errors.push('Description cannot be empty');
     }
     
-    if (data.academicYear !== undefined && (!data.academicYear || data.academicYear.trim() === '')) {
+    if (normalized.academicYear !== undefined && (!normalized.academicYear || normalized.academicYear.trim() === '')) {
       errors.push('Academic Year cannot be empty');
     }
     
@@ -212,12 +238,13 @@ export async function updateProject(id: string, data: Partial<ProjectType>) {
     
     // Process the data
     const processedData: Record<string, unknown> = {};
-    Object.keys(data).forEach(key => {
-      if (data[key as keyof ProjectType] !== undefined) {
+    Object.keys(normalized).forEach(key => {
+      const val = normalized[key as keyof ProjectType];
+      if (val !== undefined) {
         if (key === 'academicYear' || key === 'title' || key === 'description' || key === 'category' || key === 'class' || key === 'date' || key === 'liveLink') {
-          processedData[key] = (data[key as keyof ProjectType] as string)?.trim();
+          processedData[key] = (val as string)?.trim();
         } else {
-          processedData[key] = data[key as keyof ProjectType];
+          processedData[key] = val;
         }
       }
     });
@@ -238,22 +265,23 @@ export async function updateProject(id: string, data: Partial<ProjectType>) {
   } catch (error: unknown) {
     console.error('Update project error:', error);
     
+    const err = error as Error & { name?: string; errors?: Record<string, { message?: string }>; message?: string };
     if (error && typeof error === 'object' && 'name' in error) {
-      if ((error as any).name === 'ValidationError') {
-        const validationErrors = Object.values((error as any).errors).map((err: any) => err.message);
+      if (err.name === 'ValidationError' && err.errors) {
+        const validationErrors = Object.values(err.errors).map((e) => e?.message ?? '');
         throw new Error(`Database validation failed: ${validationErrors.join(', ')}`);
       }
       
-      if ((error as any).name === 'CastError') {
+      if (err.name === 'CastError') {
         throw new Error('Invalid project ID format');
       }
     }
     
-    if (error && typeof error === 'object' && 'message' in error && (error as any).message.includes('Validation failed:')) {
+    if (error && typeof error === 'object' && 'message' in error && typeof err.message === 'string' && err.message.includes('Validation failed:')) {
       throw error;
     }
     
-    throw new Error(`Failed to update project: ${(error as any).message || 'Unknown error'}`);
+    throw new Error(`Failed to update project: ${err.message ?? 'Unknown error'}`);
   }
   
   revalidatePath('/admin');
@@ -286,11 +314,12 @@ export async function deleteProject(projectId: string) {
   } catch (error: unknown) {
     console.error('Delete project error:', error);
     
-    if (error && typeof error === 'object' && 'name' in error && (error as any).name === 'CastError') {
+    const err = error as Error & { name?: string; message?: string };
+    if (error && typeof error === 'object' && 'name' in error && err.name === 'CastError') {
       return { success: false, message: 'Invalid project ID format' };
     }
     
-    return { success: false, message: `Failed to delete project: ${error && typeof error === 'object' && 'message' in error ? (error as any).message : 'Unknown error'}` };
+    return { success: false, message: `Failed to delete project: ${error && typeof error === 'object' && 'message' in error ? err.message : 'Unknown error'}` };
   }
 }
 

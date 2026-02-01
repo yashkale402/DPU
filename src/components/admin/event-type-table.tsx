@@ -82,7 +82,8 @@ export function EventTypeTable({ initialEventTypes }: EventTypeTableProps) {
         });
       } catch (error) {
         console.error('Failed to add event type:', error);
-        toast({ title: "Error", description: "Failed to add event type.", variant: "destructive" });
+        const message = error instanceof Error ? error.message : 'Failed to add event type.';
+        toast({ title: "Error", description: message, variant: "destructive" });
       }
     });
   };

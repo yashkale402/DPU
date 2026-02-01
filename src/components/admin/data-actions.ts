@@ -25,7 +25,7 @@ export const addAcademicYear = async (year: string) => {
         return JSON.parse(JSON.stringify(newYear));
     } catch (error) {
         console.error(error);
-        throw new Error('Failed to add academic year');
+        throw error instanceof Error ? error : new Error('Failed to add academic year');
     }
 }
 
@@ -63,7 +63,7 @@ export const addEventType = async (name: string) => {
         return JSON.parse(JSON.stringify(newType));
     } catch (error) {
         console.error(error);
-        throw new Error('Failed to add event type');
+        throw error instanceof Error ? error : new Error('Failed to add event type');
     }
 }
 
@@ -101,7 +101,7 @@ export const addProjectCategory = async (name: string) => {
         return JSON.parse(JSON.stringify(newCategory));
     } catch (error) {
         console.error(error);
-        throw new Error('Failed to add project category');
+        throw error instanceof Error ? error : new Error('Failed to add project category');
     }
 }
 

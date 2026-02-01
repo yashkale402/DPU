@@ -51,8 +51,8 @@ export async function POST(request: Request) {
     // Check if Cloudinary is configured
     if (!isCloudinaryConfigured()) {
       console.error('Cloudinary configuration missing');
-      return NextResponse.json({ 
-        error: 'Image upload service not configured. Please contact administrator.' 
+      return NextResponse.json({
+        error: 'Upload failed. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env.local (get them from https://console.cloudinary.com).',
       }, { status: 500 });
     }
 
@@ -84,20 +84,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ urls });
   } catch (error) {
     console.error('Upload failed:', error);
-    
-    let errorMessage = 'Upload failed';
-    if (error instanceof Error) {
-      if (error.message.includes('Invalid image file')) {
+
+    // Cloudinary often passes objects that are not instanceof Error but have .message or .error.message
+    const err = error as Error & { message?: string; error?: { message?: string }; status?: number };
+    const rawMessage =
+      typeof err?.message === 'string'
+        ? err.message
+        : typeof err?.error?.message === 'string'
+          ? err.error.message
+          : '';
+
+    let errorMessage = 'Upload failed. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env.local (get them from https://console.cloudinary.com).';
+    if (rawMessage) {
+      if (rawMessage.includes('Invalid image file')) {
         errorMessage = 'Invalid image file format';
-      } else if (error.message.includes('File size')) {
+      } else if (rawMessage.includes('File size')) {
         errorMessage = 'File size too large';
-      } else if (error.message.includes('network')) {
-        errorMessage = 'Network error during upload';
+      } else if (rawMessage.includes('network') || rawMessage.includes('ECONNREFUSED') || rawMessage.includes('ENOTFOUND')) {
+        errorMessage = 'Network error during upload. Check your connection.';
+      } else if (rawMessage.includes('Unauthorized') || rawMessage.includes('401') || rawMessage.includes('Invalid credentials') || rawMessage.includes('invalid')) {
+        errorMessage = 'Cloudinary credentials invalid. Check API key and secret in .env.local (Dashboard → API Keys at https://console.cloudinary.com).';
+      } else if (rawMessage.includes('configuration') || rawMessage.includes('config')) {
+        errorMessage = 'Cloudinary not configured. Add the three env vars to .env.local.';
       } else {
-        errorMessage = error.message;
+        errorMessage = rawMessage;
       }
     }
-    
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

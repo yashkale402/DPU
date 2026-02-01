@@ -1,13 +1,13 @@
 'use client';
 import { EventForm } from "@/components/admin/event-form";
 import { useToast } from "@/hooks/use-toast";
-import { createEvent } from "../actions";
+import { createEvent, type EventFormData } from "../actions";
 
 
 export default function NewEventPage() {
     const { toast } = useToast();
 
-    const handleFormSubmit = async (data: any) => {
+    const handleFormSubmit = async (data: EventFormData) => {
         try {
             await createEvent(data);
             toast({

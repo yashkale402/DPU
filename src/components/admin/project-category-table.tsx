@@ -81,7 +81,8 @@ export function ProjectCategoryTable({ initialProjectCategories }: ProjectCatego
         });
       } catch (error) {
         console.error('Failed to add project category:', error);
-        toast({ title: "Error", description: "Failed to add project category.", variant: "destructive" });
+        const message = error instanceof Error ? error.message : 'Failed to add project category.';
+        toast({ title: "Error", description: message, variant: "destructive" });
       }
     });
   };

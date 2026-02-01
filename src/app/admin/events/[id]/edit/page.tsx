@@ -1,6 +1,5 @@
-import { getEventById } from '@/app/admin/events/actions';
+import { getEventById, updateEvent, type EventFormData } from '@/app/admin/events/actions';
 import { EventForm } from '@/components/admin/event-form';
-import { updateEvent } from '@/app/admin/events/actions';
 import { notFound } from 'next/navigation';
 
 export default async function EditEventPage({ params }: { params: { id: string } }) {
@@ -11,7 +10,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
     notFound();
   }
 
-  const handleUpdateEvent = async (data: Record<string, unknown>) => {
+  const handleUpdateEvent = async (data: EventFormData) => {
     'use server';
     return updateEvent(eventId, data);
   };

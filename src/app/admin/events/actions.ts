@@ -12,7 +12,18 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export async function createEvent(data: any) {
+export interface EventFormData {
+  title: string;
+  date: string | Date;
+  description: string;
+  type: string;
+  academicYear: string;
+  year?: string;
+  images: string[] | { url: string }[];
+  links?: { title: string; url: string }[];
+}
+
+export async function createEvent(data: EventFormData) {
   try {
     // Check if MongoDB URI is configured
     if (!process.env.MONGODB_URI) {
@@ -28,12 +39,15 @@ export async function createEvent(data: any) {
     }
 
     // Convert form data to database format
+    const rawImages = Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object'
+      ? (data.images as { url: string }[]).map((img) => img.url)
+      : (data.images as string[] | undefined) ?? [];
+    const images = rawImages.filter((url): url is string => typeof url === 'string' && url.trim() !== '');
+
     const eventData = {
       ...data,
       date: typeof data.date === 'string' ? data.date : data.date.toISOString(),
-      images: Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object' 
-        ? data.images.map((img: any) => img.url).filter(url => url && url.trim() !== '') 
-        : (data.images || []).filter((url: string) => url && url.trim() !== '')
+      images,
     };
 
     // Ensure at least one image is provided
@@ -69,16 +83,16 @@ export async function createEvent(data: any) {
   redirect('/admin');
 }
 
-export async function updateEvent(id: string, data: any) {
+export async function updateEvent(id: string, data: EventFormData) {
     try {
         await connectToDb();
-        
+
         // Convert form data to database format
         const eventData = {
           ...data,
-          date: typeof data.date === 'string' ? data.date : data.date?.toISOString(),
-          images: Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object' 
-            ? data.images.map((img: any) => img.url) 
+          date: typeof data.date === 'string' ? data.date : data.date?.toISOString?.() ?? '',
+          images: Array.isArray(data.images) && data.images.length > 0 && typeof data.images[0] === 'object'
+            ? (data.images as { url: string }[]).map((img) => img.url)
             : data.images
         };
         

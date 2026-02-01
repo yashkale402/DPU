@@ -9,8 +9,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['"Merriweather"', 'serif'],
-        headline: ['"Merriweather"', 'serif'],
+        body: ['var(--font-merriweather)', 'serif'],
+        headline: ['var(--font-merriweather)', 'serif'],
         code: ['monospace'],
       },
       colors: {

@@ -136,8 +136,16 @@ export function EventForm({ event, onSubmit, onCancelPath }: EventFormProps) {
         });
         
         if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Upload failed');
+          let errorMessage = 'Upload failed.';
+          try {
+            const errorData = await res.json();
+            errorMessage = (errorData as { error?: string }).error || errorMessage;
+          } catch {
+            errorMessage = res.status === 500
+              ? 'Upload failed. Check Cloudinary settings in .env.local (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET).'
+              : `Upload failed (${res.status}).`;
+          }
+          throw new Error(errorMessage);
         }
         
         const data = await res.json();
