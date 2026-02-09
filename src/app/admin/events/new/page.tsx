@@ -1,19 +1,32 @@
 'use client';
 import { EventForm } from "@/components/admin/event-form";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 import { createEvent, type EventFormData } from "../actions";
 
 
 export default function NewEventPage() {
     const { toast } = useToast();
+    const router = useRouter();
 
     const handleFormSubmit = async (data: EventFormData) => {
         try {
-            await createEvent(data);
+            const result = await createEvent(data);
+
+            if (!result.success) {
+                toast({
+                    title: "Error",
+                    description: result.message || "Failed to create event. Please try again.",
+                    variant: "destructive"
+                });
+                return;
+            }
+
             toast({
                 title: "Event Created",
-                description: "The new event has been successfully created.",
+                description: result.message || "The new event has been successfully created.",
             });
+            router.push("/admin");
         } catch (error) {
             console.error('Failed to create event:', error);
              toast({

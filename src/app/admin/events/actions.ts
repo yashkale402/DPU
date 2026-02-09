@@ -3,7 +3,6 @@
 import { connectToDb } from '@/lib/db';
 import { Event } from '@/lib/models';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -23,19 +22,25 @@ export interface EventFormData {
   links?: { title: string; url: string }[];
 }
 
-export async function createEvent(data: EventFormData) {
+export async function createEvent(data: EventFormData): Promise<{ success: boolean; message: string }> {
   try {
     // Check if MongoDB URI is configured
     if (!process.env.MONGODB_URI) {
       console.error('MONGODB_URI environment variable is not set');
-      throw new Error('Database configuration missing. Please check environment variables.');
+      return {
+        success: false,
+        message: 'Database configuration missing. Please check environment variables.',
+      };
     }
 
     await connectToDb();
     
     // Validate required fields
     if (!data.title || !data.date || !data.description || !data.type || !data.academicYear) {
-      throw new Error('Missing required fields. Please fill in all required information.');
+      return {
+        success: false,
+        message: 'Missing required fields. Please fill in all required information.',
+      };
     }
 
     // Convert form data to database format
@@ -52,35 +57,58 @@ export async function createEvent(data: EventFormData) {
 
     // Ensure at least one image is provided
     if (!eventData.images || eventData.images.length === 0) {
-      throw new Error('At least one image is required for the event.');
+      return {
+        success: false,
+        message: 'At least one image is required for the event.',
+      };
     }
     
     console.log('Creating event with data:', eventData);
     const newEvent = new Event(eventData);
     await newEvent.save();
     console.log('Event created successfully:', newEvent._id);
+
+    // Revalidate caches after successful creation
+    revalidatePath('/admin');
+    revalidatePath('/events');
+
+    return {
+      success: true,
+      message: 'Event created successfully.',
+    };
   } catch (error) {
     console.error('Error creating event:', error);
     
     // Provide more specific error messages
     if (error instanceof Error) {
       if (error.message.includes('validation failed')) {
-        throw new Error('Validation failed. Please check all required fields are properly filled.');
+        return {
+          success: false,
+          message: 'Validation failed. Please check all required fields are properly filled.',
+        };
       } else if (error.message.includes('duplicate key')) {
-        throw new Error('An event with similar details already exists.');
+        return {
+          success: false,
+          message: 'An event with similar details already exists.',
+        };
       } else if (error.message.includes('connection')) {
-        throw new Error('Database connection failed. Please try again later.');
+        return {
+          success: false,
+          message: 'Database connection failed. Please try again later.',
+        };
       } else {
-        throw error;
+        return {
+          success: false,
+          message: error.message || 'Failed to create event. Please try again.',
+        };
       }
     }
     
-    throw new Error('Failed to create event. Please try again.');
+    return {
+      success: false,
+      message: 'Failed to create event. Please try again.',
+    };
   }
-
-  revalidatePath('/admin');
-  revalidatePath('/events');
-  redirect('/admin');
 }
 
 export async function updateEvent(id: string, data: EventFormData) {
